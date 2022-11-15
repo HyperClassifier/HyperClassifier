@@ -283,7 +283,7 @@ parser IngressParser(packet_in        pkt,
         // parse tcp option
         pkt.extract(
             hdr.tcp_option, 
-            ((bit<32>)hdr.tcp.data_offset - 5) * 32w32);        // 这里因为varbit要跟4字节(32bit)对齐, 所以要转换一下计算的方式
+            ((bit<32>)hdr.tcp.data_offset - 5) * 32w32);        // 
         transition parse_4byte_payload;
     }
 
@@ -352,7 +352,7 @@ control Ingress(
         metadata.uncompleted_flow_expire_flag = uncompleted_flow_expire_check.execute(metadata.flow_id);
     }
 
-    // uncompleted flow expire, stage1 已经计算好了flow id
+    // uncompleted flow expire, stage1 to ompflow id
     @stage(3)
     table ti_uncompleted_flow_expire {
         key = {
@@ -366,7 +366,7 @@ control Ingress(
     }
 
 
-    // flag == 3 表示当前packet应该被 logic 所忽略
+    
     Register<bit<8>, _>(size=MAX_FLOW, initial_value=0) flow_flag;
     RegisterAction<bit<8>, _, bit<8>>(flow_flag)
     set_dir1_flag = {
@@ -405,7 +405,7 @@ control Ingress(
         metadata.flow_flag = (bit<4>)set_dir2_flag.execute(metadata.flow_id);
     }
 
-    // 设置flag
+    
     @stage(4)
     table ti_set_flow_flag {
         key = {
@@ -437,7 +437,7 @@ control Ingress(
     }
 
 
-    // completion list中的flow只需要更新time即可
+   
     Register<bit<32>, _>(size=MAX_FLOW, initial_value=0) completion_list_time;
     RegisterAction<bit<32>, _, void>(completion_list_time)
     update_time = {
@@ -611,8 +611,8 @@ control Ingress(
         // hdr.udp.src_port = hdr.pkt_gen.packet_id;
     }
 
-    // stage数一定要在 get_flow_id 之后
-    // batch: 0..1, packet_id: 0.. 2^16 / 2 - 1, 所以实际的每个packet_gen_flow_id = batch_id * (2^15) + packet_id
+    
+    // batch: 0..1, packet_id: 0.. 2^16 / 2 - 1
     @stage(0)
     table ti_set_pkt_gen_flow_id {
         key = {
@@ -704,7 +704,7 @@ control Ingress(
         metadata.payload_length = hdr.ipv4.total_len - metadata.payload_length;
     }
 
-    // 在一个stage内计算tcp报文的payload长度
+    
     @stage(3)
     table ti_get_tcp_payload_length {
         key = {
@@ -1118,17 +1118,17 @@ control Ingress(
         
 
         if(hdr.pkt_gen.isValid()) {
-            // 放在 if 里面是为了防止 compiler 认为会对同一个 Register 执行两次 RegisterAction
+            
             ti_expire_completed_list.apply();
 
             ti_uncompleted_flow_expire.apply();
             ti_clear_flow_flag.apply();
-            // 防止 pkt_gen 生成的报文发送出去
+            
             ig_dprsr_md.drop_ctl = 1;
 
         } 
         else{
-            // TODO: 不去命中TCP的控制报文
+            
             // Default forward
             
             ti_init_metadata.apply();
@@ -1141,12 +1141,12 @@ control Ingress(
 
             
             // get flow_id
-            // 由于需要看双向的流，所以这里flow_id使用<src, dst>来计算,就不用管是哪个方向来的了
+            
             ti_get_flow_id.apply();
             // get_flow_direction
             ti_get_direction.apply();
 
-            // 对每个未完成分类的流记录最后一个packet的时间
+            
             ti_uncompleted_flow_record_time.apply();
 
             // flow flag
@@ -1161,7 +1161,7 @@ control Ingress(
 
         
             
-            // only when normal case, 忽略flag = 1 
+            
             if(metadata.half_open_connection_flag == 0 && metadata.payload_length != 0 && metadata.flow_flag != 3) {
                 ti_access_server_port.apply();
                 ti_access_client_length.apply();
